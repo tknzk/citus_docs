@@ -12,7 +12,46 @@ In the following sections, we discuss the different types of queries you can run
 Aggregate Functions
 -------------------
 
-Citus supports and parallelizes most aggregate functions supported by PostgreSQL. Citus's query planner transforms the aggregate into its commutative and associative form so it can be parallelized. In this process, the workers run an aggregation query on the shards and the coordinator then combines the results from the workers to produce the final output.
+Citus supports and parallelizes most aggregate functions supported by
+PostgreSQL. Citus's query planner transforms the aggregate into its commutative
+and associative form so it can be parallelized. In this process, the workers
+run an aggregation query on the shards and the coordinator then combines the
+results from the workers to produce the final output.
+
+Aggregate execution works in two ways:
+
+1. When the aggregate is grouped by a table's distribution column, and there
+   are no aggregates on distinct values of non-distribution columns, Citus can
+   push down execution of the entire query to each worker. All PostgreSQL
+   aggregates and custom aggregates are supported in this situation, and execute
+   in parallel on the worker nodes.
+2. Otherwise, if grouping on a non-distribution column, or aggregating on a
+   distinct value like ``sum(distinct col)`` (where ``col`` is not the
+   distribution column), then aggregation must happen on the coordinator node.
+
+Situation two is less efficient because all query data must be transferred to
+the coordinator node and grouped there. What's more, small changes in a query
+can change execution modes, causing potentially surprising inefficiency. For
+example ``sum(x)`` might use distributed execution, while ``sum(distinct x)``
+has to pull up the entire set of input records.
+
+All it takes is one column to hurt the execution of a whole query.  In the
+example below, if ``sum(distinct value2)`` has to be grouped on the
+coordinator, then so will ``sum(value1)`` even if the latter was fine on its
+own.
+
+.. code-block:: sql
+
+  SELECT sum(value1), sum(distinct value2) FROM distributed_table;
+
+To avoid accidentally pulling data to the coordinator, you can set a GUC:
+
+.. code-block:: sql
+
+  SET citus.coordinator_aggregation_strategy TO 'disabled';
+
+Note that disabling the coordinator aggregation strategy will prevent "type
+two" aggregate queries from working at all.
 
 .. _count_distinct:
 
