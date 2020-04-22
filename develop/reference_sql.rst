@@ -27,7 +27,9 @@ Aggregate execution works in two ways:
    in parallel on the worker nodes.
 2. Otherwise, if grouping on a non-distribution column, or aggregating on a
    distinct value like ``sum(distinct col)`` (where ``col`` is not the
-   distribution column), then aggregation must happen on the coordinator node.
+   distribution column), or if using aggregates sensitive to row ordering, with
+   a specific order requested (e.g. ``array_agg(col ORDER BY ...)``) then
+   aggregation must happen on the coordinator node.
 
 Situation two is less efficient because all query data must be transferred to
 the coordinator node and grouped there. What's more, small changes in a query
