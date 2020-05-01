@@ -135,6 +135,29 @@ Citus propagates single-table GRANT statements through the entire cluster, makin
     'GRANT SELECT ON ALL TABLES IN SCHEMA public TO reports;'
   );
 
+Granting Privileges in Specific Table, Columns
+----------------------------------------------
+
+.. code-block:: postgresql
+
+  -- applies to the coordinator node
+  GRANT SELECT ON specific_table TO reports;
+
+  -- make it apply to placements as well
+  SELECT run_command_on_placements(
+    'specific_table', 'GRANT SELECT ON %s TO reports;'
+  );
+
+.. code-block:: postgresql
+
+  -- applies to the coordinator node
+  GRANT SELECT (col1, col2) ON specific_table TO reports;
+
+  -- make it apply to placements as well
+  SELECT run_command_on_placements(
+    'specific_table', 'GRANT SELECT (col1,col2) ON %s TO reports;'
+  );
+
 .. _grant_usage:
 
 Granting Access to Other Schemas
